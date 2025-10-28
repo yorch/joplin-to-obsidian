@@ -21,7 +21,7 @@ This tool processes Joplin exports and performs the following operations:
 1. **Resource Organization**: Moves resources from the global `_resources` directory to local `_resources` folders next to each markdown file that references them
 2. **File Cleanup**: Removes trailing underscores and spaces from file and folder names
 3. **Directory Cleanup**: Removes empty `_resources` directories after processing
-4. **Metadata Cleanup**: Removes location data (latitude, longitude, altitude) from YAML front matter
+4. **Metadata Cleanup**: Removes location data (latitude, longitude, altitude) from YAML front matter (optional, can be skipped with `--keep-location`)
 
 ## Prerequisites
 
@@ -52,6 +52,14 @@ python main.py
 
 ```bash
 python main.py --dir /path/to/your/joplin/export
+```
+
+### Keep Location Data
+
+By default, the tool removes location data (latitude, longitude, altitude) from YAML front matter. To preserve this data:
+
+```bash
+python main.py --keep-location
 ```
 
 ### Get Help

@@ -21,22 +21,43 @@ This tool processes Joplin exports and performs the following operations:
 1. **Resource Organization**: Moves resources from the global `_resources` directory to local `_resources` folders next to each markdown file that references them
 2. **File Cleanup**: Removes trailing underscores and spaces from file and folder names
 3. **Directory Cleanup**: Removes empty `_resources` directories after processing
-4. **Metadata Cleanup**: Removes location data (latitude, longitude, altitude) from YAML front matter (optional, can be skipped with `--keep-location`)
+4. **Location Data**: By default, location data is kept as-is. Optionally use `--strip-location` to remove coordinates, or `--convert-location` to add human-readable location names while keeping coordinates
 
 ## Prerequisites
 
-- Python 3.6 or higher
+- Python 3.8 or higher
+- [uv](https://docs.astral.sh/uv/) - Fast Python package installer and resolver
 - A Joplin export in "Markdown + Front Matter" format
 
 ## Installation
 
-Clone this repository:
+### Install uv (if not already installed)
+
+```bash
+# macOS and Linux
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Windows
+powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+
+# Or with pip
+pip install uv
+```
+
+### Clone the repository
+
 ```bash
 git clone https://go.hugobatista.com/gh/joplin-to-obsidian.git
 cd joplin-to-obsidian
 ```
 
-No additional dependencies are required - the tool uses only Python standard library modules.
+### Optional Dependencies
+
+The tool works without any external dependencies for basic functionality. However, if you want to use the `--convert-location` feature to convert GPS coordinates to human-readable location names, install the optional dependencies using `uv`:
+
+```bash
+uv sync
+```
 
 ## Usage
 
@@ -45,27 +66,98 @@ No additional dependencies are required - the tool uses only Python standard lib
 Run the tool in the directory containing your Joplin export:
 
 ```bash
+# Using uv (recommended)
+uv run main.py
+
+# Or with Python directly
 python main.py
 ```
 
 ### Specify a Different Directory
 
 ```bash
-python main.py --dir /path/to/your/joplin/export
+uv run main.py --dir /path/to/your/joplin/export
 ```
 
-### Keep Location Data
+### Strip Location Data
 
-By default, the tool removes location data (latitude, longitude, altitude) from YAML front matter. To preserve this data:
+By default, the tool keeps location data (latitude, longitude, altitude) as-is. To remove this data:
 
 ```bash
-python main.py --keep-location
+uv run main.py --strip-location
 ```
+
+### Convert Location Coordinates to Names
+
+Convert GPS coordinates (latitude/longitude) to human-readable location names and add them as a `location` field. This keeps the original coordinates intact while adding a more readable location:
+
+```bash
+uv run main.py --convert-location
+```
+
+**Requirements**: This feature requires the `geopy` library (`uv pip install geopy` or `pip install geopy`)
+
+**Example transformation**:
+```yaml
+# Before
+---
+title: My Note
+latitude: 40.7128
+longitude: -74.0060
+altitude: 10.5
+---
+
+# After
+---
+title: My Note
+latitude: 40.7128
+longitude: -74.0060
+altitude: 10.5
+location: New York, New York, United States
+---
+```
+
+**Note**: This process respects OpenStreetMap's usage policy with a 1 request per second rate limit, so it may take some time for large note collections.
+
+**Statistics Output**: After processing, you'll see a detailed summary including:
+```
+============================================================
+PROCESSING SUMMARY
+============================================================
+Total markdown files found: 150
+Files with coordinates: 45
+Files modified: 45
+
+Location Conversion:
+  - Locations added: 42
+  - Failed geocoding: 3
+  - API requests made: 28
+
+Cache Performance:
+  - Cache hits: 17
+  - Cache misses: 28
+  - Cache hit rate: 37.8%
+  - API calls saved: 17
+============================================================
+```
+
+### Debug Mode
+
+Enable detailed logging for location API requests and caching to troubleshoot or monitor the conversion process:
+
+```bash
+uv run main.py --convert-location --debug
+```
+
+This will show:
+- Cache hits and misses for each coordinate lookup
+- API request attempts and responses
+- Detailed information about each geocoding operation
 
 ### Get Help
 
 ```bash
-python main.py --help
+uv run main.py --help
 ```
 
 ## Input Structure
@@ -139,11 +231,13 @@ Removes trailing underscores and spaces from files and folders while avoiding co
 
 Removes empty `_resources` directories that no longer contain any files after the migration.
 
-### Step 4: Metadata Cleanup
+### Step 4: Location Data Processing
 
-Removes location-specific metadata from YAML front matter:
+By default, location data is kept as-is. You can optionally use flags to process this data:
 
-**Before:**
+**Default behavior (keeps coordinates):**
+
+Before:
 ```yaml
 ---
 title: My Note
@@ -154,7 +248,31 @@ altitude: 10.5
 ---
 ```
 
-**After:**
+After:
+```yaml
+---
+title: My Note
+created: 2023-01-01T10:00:00.000Z
+latitude: 40.7128
+longitude: -74.0060
+altitude: 10.5
+---
+```
+
+**With `--strip-location` flag (removes all coordinates):**
+
+Before:
+```yaml
+---
+title: My Note
+created: 2023-01-01T10:00:00.000Z
+latitude: 40.7128
+longitude: -74.0060
+altitude: 10.5
+---
+```
+
+After:
 ```yaml
 ---
 title: My Note
@@ -162,36 +280,72 @@ created: 2023-01-01T10:00:00.000Z
 ---
 ```
 
+**With `--convert-location` flag (adds location field, keeps coordinates):**
+
+Before:
+```yaml
+---
+title: My Note
+created: 2023-01-01T10:00:00.000Z
+latitude: 40.7128
+longitude: -74.0060
+altitude: 10.5
+---
+```
+
+After:
+```yaml
+---
+title: My Note
+created: 2023-01-01T10:00:00.000Z
+latitude: 40.7128
+longitude: -74.0060
+altitude: 10.5
+location: New York, New York, United States
+---
+```
+
 ## Examples
 
-### Example 1: Basic Migration
+### Example 1: Basic Migration (Keep Location Data)
 
 ```bash
 # Navigate to your Joplin export directory
 cd ~/Downloads/joplin-export
 
-# Run the migration tool
-python /path/to/joplin-to-obsidian/main.py
+# Run the migration tool (keeps location data by default)
+uv run /path/to/joplin-to-obsidian/main.py
 
 # The tool will show what it will do and ask for confirmation
 ```
 
-### Example 2: Process a Specific Directory
+### Example 2: Remove Location Data
 
 ```bash
-# Process a specific directory
-python main.py --dir ~/Documents/my-joplin-notes
+# Process and strip location coordinates
+uv run main.py --dir ~/Documents/my-joplin-notes --strip-location
 
-# The tool will process the specified directory
+# This will remove latitude, longitude, and altitude from all notes
 ```
 
-### Example 3: Batch Processing
+### Example 3: Convert Coordinates to Location Names
+
+```bash
+# Add human-readable location names while keeping coordinates
+# Make sure you have geopy installed first: uv pip install geopy
+uv run main.py --dir ~/Documents/my-joplin-notes --convert-location
+
+# This will add a location field like "New York, New York, United States"
+# while keeping the original latitude/longitude coordinates
+```
+
+### Example 4: Batch Processing
 
 ```bash
 # You can process multiple exports by running the tool multiple times
 for dir in ~/Downloads/joplin-export-*; do
     echo "Processing $dir"
-    python main.py --dir "$dir"
+    uv run main.py --dir "$dir"
 done
 ```
 
@@ -214,8 +368,10 @@ After running the tool, verify that:
 
 ## Technical Details
 
-- **Language**: Python 3.6+
-- **Dependencies**: None (uses only standard library)
+- **Language**: Python 3.8+
+- **Package Manager**: [uv](https://docs.astral.sh/uv/)
+- **Core Dependencies**: None (uses only standard library)
+- **Optional Dependencies**: geopy (for `--convert-location` feature)
 - **File Encoding**: UTF-8
 - **Supported Platforms**: Cross-platform (Windows, macOS, Linux)
 

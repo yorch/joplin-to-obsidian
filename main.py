@@ -5,16 +5,15 @@ from moveresources import move_resources
 from cleanup import (
     remove_trailing_underscores,
     remove_empty_resources_dirs,
-    remove_location_frontmatter,
+    process_location_frontmatter,
 )
 from utils import Colors, print_status, print_error, print_step
 
-# Operations that will be performed
+# Operations that will be performed (base operations, location handling depends on flags)
 OPERATIONS = [
     "Move resources from _resources directory to _resources folders next to markdown files",
     "Remove trailing underscores and spaces from files and folders",
     "Remove empty _resources directories",
-    "Remove location data (latitude, longitude, altitude) from YAML front matter",
 ]
 
 
@@ -42,14 +41,35 @@ Use --help to see this message.
         help="The root directory of the Obsidian vault (default: current directory)",
     )
     parser.add_argument(
-        "--keep-location",
+        "--strip-location",
         action="store_true",
-        help="Keep location data (latitude, longitude, altitude) in YAML front matter",
+        help="Remove location data (latitude, longitude, altitude) from YAML front matter",
+    )
+    parser.add_argument(
+        "--convert-location",
+        action="store_true",
+        help="Convert latitude/longitude to human-readable location names and add as 'location' field (keeps coordinates, requires geopy: pip install geopy)",
+    )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable debug output for location API requests and caching",
     )
     args = parser.parse_args()
 
     if not os.path.exists(args.dir):
         print_error(f"Error: Directory does not exist: {args.dir}")
+        return 1
+
+    # Validate flag combinations
+    if args.strip_location and args.convert_location:
+        print_error(
+            "Error: --strip-location and --convert-location cannot be used together"
+        )
+        print_error("  --strip-location: removes all coordinate data")
+        print_error(
+            "  --convert-location: adds human-readable location field while keeping coordinates"
+        )
         return 1
 
     # Show what will be done and ask for confirmation
@@ -65,13 +85,16 @@ Use --help to see this message.
     print("  - YAML front matter in markdown files (if applicable)")
     print("\nThis script will perform the following operations:")
 
-    # Show operations, adjusting for --keep-location flag
+    # Show operations, adjusting for flags
     operations_to_show = OPERATIONS.copy()
-    if args.keep_location:
-        # Remove the location removal operation from the list
-        operations_to_show = [
-            op for op in operations_to_show if "location data" not in op.lower()
-        ]
+    if args.strip_location:
+        operations_to_show.append(
+            "Remove location data (latitude, longitude, altitude) from YAML front matter"
+        )
+    elif args.convert_location:
+        operations_to_show.append(
+            "Add human-readable location names from coordinates (keeping original coordinates)"
+        )
 
     for i, operation in enumerate(operations_to_show, 1):
         print(f"{i}. {operation}")
@@ -115,17 +138,35 @@ Use --help to see this message.
         print_error(f"Error during empty directory cleanup: {e}")
         return 1
 
-    # Step 4: Remove location data from YAML front matter (optional)
-    if not args.keep_location:
-        print_step(4, "Removing location data from YAML front matter")
+    # Step 4: Process location data in YAML front matter (optional)
+    if args.strip_location or args.convert_location:
+        if args.convert_location:
+            print_step(4, "Adding human-readable location names (keeping coordinates)")
+            print(
+                "Note: This may take a while due to API rate limits (1 request/second)"
+            )
+            if args.debug:
+                print_status(
+                    "[DEBUG] Debug mode enabled - detailed API request logging active"
+                )
+        else:
+            print_step(4, "Removing location data from YAML front matter")
+
         try:
-            processed_files = remove_location_frontmatter(args.dir)
+            processed_files = process_location_frontmatter(
+                args.dir,
+                convert_to_location=args.convert_location,
+                strip_coordinates=args.strip_location,
+                debug=args.debug,
+            )
             print_status(f"Processed {len(processed_files)} markdown files")
         except Exception as e:
             print_error(f"Error during frontmatter cleanup: {e}")
             return 1
     else:
-        print_status("Skipping location data removal (--keep-location flag set)")
+        print_status(
+            "Keeping location data as-is (no --strip-location or --convert-location flag)"
+        )
 
     print(f"\n{Colors.GREEN}All operations completed successfully!{Colors.RESET}")
     return 0

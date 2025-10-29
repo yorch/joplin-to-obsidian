@@ -55,6 +55,11 @@ Use --help to see this message.
         action="store_true",
         help="Enable debug output for location API requests and caching",
     )
+    parser.add_argument(
+        "--add-source",
+        action="store_true",
+        help="Add 'source: Joplin' field to YAML front matter of all notes",
+    )
     args = parser.parse_args()
 
     if not os.path.exists(args.dir):
@@ -95,6 +100,9 @@ Use --help to see this message.
         operations_to_show.append(
             "Add human-readable location names from coordinates (keeping original coordinates)"
         )
+
+    if args.add_source:
+        operations_to_show.append("Add 'source: Joplin' field to YAML front matter")
 
     for i, operation in enumerate(operations_to_show, 1):
         print(f"{i}. {operation}")
@@ -140,10 +148,22 @@ Use --help to see this message.
         print_error(f"Error during empty directory cleanup: {e}")
         return 1
 
-    # Step 4: Process location data in YAML front matter (optional)
-    if args.strip_location or args.convert_location:
+    # Step 4: Process location data and source in YAML front matter (optional)
+    if args.strip_location or args.convert_location or args.add_source:
+        step_descriptions = []
         if args.convert_location:
-            print_step(4, "Adding human-readable location names (keeping coordinates)")
+            step_descriptions.append(
+                "adding human-readable location names (keeping coordinates)"
+            )
+        if args.strip_location:
+            step_descriptions.append("removing location data")
+        if args.add_source:
+            step_descriptions.append("adding source field")
+
+        step_title = "Processing YAML front matter: " + ", ".join(step_descriptions)
+        print_step(4, step_title)
+
+        if args.convert_location:
             print(
                 "Note: This may take a while due to API rate limits (1 request/second)"
             )
@@ -151,23 +171,22 @@ Use --help to see this message.
                 print_status(
                     "[DEBUG] Debug mode enabled - detailed API request logging active"
                 )
-        else:
-            print_step(4, "Removing location data from YAML front matter")
 
         try:
             processed_files = process_location_frontmatter(
                 args.dir,
                 convert_to_location=args.convert_location,
                 strip_coordinates=args.strip_location,
+                add_source=args.add_source,
                 debug=args.debug,
             )
             print(f"\nProcessed {len(processed_files)} markdown files")
         except Exception as e:
-            print_error(f"Error during frontmatter cleanup: {e}")
+            print_error(f"Error during frontmatter processing: {e}")
             return 1
     else:
         print(
-            "\nKeeping location data as-is (no --strip-location or --convert-location flag)"
+            "\nNo front matter changes requested (use --strip-location, --convert-location, or --add-source)"
         )
 
     print(f"\n{Colors.GREEN}All operations completed successfully!{Colors.RESET}")

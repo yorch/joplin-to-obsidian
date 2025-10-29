@@ -223,7 +223,11 @@ def get_location_name(
 
 
 def process_location_frontmatter(
-    directory, convert_to_location=False, strip_coordinates=False, debug=False
+    directory,
+    convert_to_location=False,
+    strip_coordinates=False,
+    add_source=False,
+    debug=False,
 ):
     """
     Process latitude, longitude, and altitude attributes in YAML front matter.
@@ -234,6 +238,7 @@ def process_location_frontmatter(
                            Keeps the original coordinates intact.
         strip_coordinates: If True, remove all coordinate data (latitude, longitude, altitude).
                           Cannot be used together with convert_to_location.
+        add_source: If True, add 'source: Joplin' field to front matter if not already present.
         debug: If True, print debug messages for API requests and caching (default: False)
 
     Returns:
@@ -263,6 +268,7 @@ def process_location_frontmatter(
         "files_processed": 0,
         "locations_added": 0,
         "coordinates_stripped": 0,
+        "source_added": 0,
         "api_requests": 0,
         "failed_geocoding": 0,
     }
@@ -398,6 +404,19 @@ def process_location_frontmatter(
                                 if has_coords:
                                     stats["coordinates_stripped"] += 1
 
+                            # Add source field if requested
+                            if add_source:
+                                # Check if source field already exists
+                                if not re.search(
+                                    r"^source:", front_matter, re.MULTILINE
+                                ):
+                                    # Add source field
+                                    if front_matter.endswith("\n"):
+                                        front_matter += "source: Joplin\n"
+                                    else:
+                                        front_matter += "\nsource: Joplin\n"
+                                    stats["source_added"] += 1
+
                             # Clean up multiple consecutive newlines
                             front_matter = re.sub(r"\n\n+", "\n\n", front_matter)
                             front_matter = front_matter.strip()
@@ -457,6 +476,10 @@ def process_location_frontmatter(
     if strip_coordinates:
         print("\nCoordinate Removal:")
         print(f"  - Files with coordinates stripped: {stats['coordinates_stripped']}")
+
+    if add_source:
+        print("\nSource Field:")
+        print(f"  - Files with source added: {stats['source_added']}")
 
     print("=" * 60)
 

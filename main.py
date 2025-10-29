@@ -117,6 +117,7 @@ Use --help to see this message.
     print_step(1, "Moving resources to _resources folders")
     try:
         move_resources(args.dir)
+        print("Done!")
     except Exception as e:
         print_error(f"Error during resource movement: {e}")
         return 1
@@ -125,6 +126,7 @@ Use --help to see this message.
     print_step(2, "Removing trailing underscores and spaces from files and folders")
     try:
         remove_trailing_underscores(args.dir)
+        print("Done!")
     except Exception as e:
         print_error(f"Error during underscore cleanup: {e}")
         return 1
@@ -133,7 +135,7 @@ Use --help to see this message.
     print_step(3, "Removing empty _resources directories")
     try:
         removed_dirs = remove_empty_resources_dirs(args.dir)
-        print_status(f"Removed {len(removed_dirs)} empty _resources directories")
+        print(f"Removed {len(removed_dirs)} empty _resources directories")
     except Exception as e:
         print_error(f"Error during empty directory cleanup: {e}")
         return 1
@@ -159,13 +161,13 @@ Use --help to see this message.
                 strip_coordinates=args.strip_location,
                 debug=args.debug,
             )
-            print_status(f"Processed {len(processed_files)} markdown files")
+            print(f"\nProcessed {len(processed_files)} markdown files")
         except Exception as e:
             print_error(f"Error during frontmatter cleanup: {e}")
             return 1
     else:
-        print_status(
-            "Keeping location data as-is (no --strip-location or --convert-location flag)"
+        print(
+            "\nKeeping location data as-is (no --strip-location or --convert-location flag)"
         )
 
     print(f"\n{Colors.GREEN}All operations completed successfully!{Colors.RESET}")

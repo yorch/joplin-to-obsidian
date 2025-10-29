@@ -15,6 +15,7 @@ except ImportError:
 
 def remove_trailing_underscores(directory):
     """Remove trailing underscores and spaces from all files and folders in the directory tree."""
+
     # Process files and directories from deepest to shallowest to avoid path conflicts
     for root, dirs, files in os.walk(directory, topdown=False):
         # Rename files first

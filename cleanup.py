@@ -341,9 +341,15 @@ def process_location_frontmatter(
                                             r"^location:", front_matter, re.MULTILINE
                                         ):
                                             # Add location field (keep coordinates intact)
-                                            front_matter += (
-                                                f"\nlocation: {location_name}\n"
-                                            )
+                                            # Ensure front_matter doesn't end with newline to avoid double newline
+                                            if front_matter.endswith("\n"):
+                                                front_matter += (
+                                                    f"location: {location_name}\n"
+                                                )
+                                            else:
+                                                front_matter += (
+                                                    f"\nlocation: {location_name}\n"
+                                                )
                                             stats["locations_added"] += 1
                                             print_status(
                                                 f"Added location: {location_name} to {file_path}"
